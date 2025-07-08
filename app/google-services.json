@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "167639734033",
+    "project_id": "stonesforever-ba84b",
+    "storage_bucket": "stonesforever-ba84b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:167639734033:android:5647b9084dfbcf036d9eb0",
+        "android_client_info": {
+          "package_name": "com.hady.stonesforever"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5-XchXod3e8PNDozZ9yg2CRVSvOrcgw8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
