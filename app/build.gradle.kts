@@ -59,13 +59,16 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    implementation("com.google.dagger:hilt-android:2.56.2")
+    ksp ("com.google.dagger:hilt-compiler:2.56.2")
+
     // Hilt Core
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    //ksp(libs.hilt.compiler)
 
     // Hilt for Android lifecycle components
     implementation(libs.androidx.hilt.navigation.compose)
-    ksp(libs.androidx.hilt.compiler)
+    //ksp(libs.androidx.hilt.compiler)
 
     // Jetpack Compose Navigation
     implementation(libs.androidx.navigation.compose)

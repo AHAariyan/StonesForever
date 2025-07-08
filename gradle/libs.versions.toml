@@ -15,7 +15,8 @@ composeBom = "2025.06.01"
 # Hilt (Dagger Hilt)
 hilt = "2.56.2" # Latest stable
 hiltExt = "1.2.0" # Latest stable AndroidX Hilt extensions
-ksp = "2.0.21-1.0.27" # KSP version updated to match Kotlin 1.9.24
+ksp = "2.2.0-2.0.2"
+
 
 # Jetpack Compose Navigation
 navigationCompose = "2.9.1" # Latest stable
@@ -73,10 +74,12 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 
 # Google Sign-In & Drive API
 google-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "googleServicesAuth" }
-google-api-client = { group = "com.google.api-client", name = "google-api-client", version.ref = "googleApiClient" }
-google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClientAndroid" }
-google-api-client-gson = { group = "com.google.api-client", name = "google-api-client-gson", version.ref = "googleApiClientGson" }
-google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleApiServicesDrive" }
+#google-api-client = { group = "com.google.api-client", name = "google-api-client", version.ref = "googleApiClient" }
+#google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClientAndroid" }
+#google-api-client-gson = { group = "com.google.api-client", name = "google-api-client-gson", version.ref = "googleApiClientGson" }
+#google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleApiServicesDrive" }
+
+ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 
 # Coroutines
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
@@ -91,7 +94,7 @@ google-drive-api = [
     "google-api-client",
     "google-api-client-android",
     "google-api-client-gson",
-    "google-api-services-drive"
+   # "google-api-services-drive"
 ]
 compose-core = [
     "androidx-compose-ui",

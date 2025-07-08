@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.hady.stonesforever.presentation.ui.AuthScreen
+import com.hady.stonesforever.presentation.viewmodel.AuthViewModel
 import com.hady.stonesforever.ui.theme.StonesForeverTheme
 
 class MainActivity : ComponentActivity() {
@@ -19,6 +22,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             StonesForeverTheme {
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     StonesForeverApp(
                         modifier = Modifier.padding(innerPadding)
@@ -31,5 +35,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun StonesForeverApp(modifier: Modifier = Modifier) {
-
+    val viewModel: AuthViewModel = hiltViewModel()
+    AuthScreen(viewModel = viewModel)
 }
