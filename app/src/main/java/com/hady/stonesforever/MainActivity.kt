@@ -38,5 +38,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun StonesForeverApp(modifier: Modifier = Modifier) {
     val viewModel: AuthViewModel = hiltViewModel()
-    AuthScreen(viewModel = viewModel)
+    AuthScreen(viewModel = viewModel, onSignedIn = { user ->
+        if (user != null) {
+
+        }
+    })
 }

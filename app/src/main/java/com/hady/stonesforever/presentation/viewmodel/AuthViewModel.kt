@@ -8,7 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseUser
 import com.hady.stonesforever.data.model.UserData
+import com.hady.stonesforever.domain.use_cases.GetCurrentUserUseCase
 import com.hady.stonesforever.domain.use_cases.SignInWithGoogleUseCase
+import com.hady.stonesforever.domain.use_cases.SignOutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,29 +21,74 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val useCase: SignInWithGoogleUseCase,
-    @ApplicationContext private val context: Context
+    private val signInUseCases: SignInWithGoogleUseCase,
+    private val signOutUseCase: SignOutUseCase,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
 ) : ViewModel() {
 
-    private val _user = MutableStateFlow<FirebaseUser?>(null)
-    val user: StateFlow<FirebaseUser?> = _user.asStateFlow()
+    private val _authState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
+    val authState: StateFlow<AuthUiState> = _authState.asStateFlow()
 
-    private var _pendingIntentSender: IntentSender? = null
-    val intentSender: IntentSender? get() = _pendingIntentSender
+    private var _intentSender: IntentSender? = null
+    val intentSender: IntentSender?
+        get() = _intentSender
 
-    fun requestGoogleSignIn() = viewModelScope.launch {
-        try {
-            _pendingIntentSender = useCase.beginSignIn(context)
-        } catch (e: Exception) {
-            Log.e("Auth", "Begin sign-in failed", e)
+    init {
+        checkIfUserIsSignedIn()
+    }
+
+    fun checkIfUserIsSignedIn() {
+        val user = getCurrentUserUseCase()
+        _authState.value = if (user != null) {
+            AuthUiState.Success(user)
+        } else {
+            AuthUiState.NotSignedIn
         }
     }
 
-    fun handleSignInResult(intent: Intent) = viewModelScope.launch {
-        try {
-            _user.value = useCase.handleIntent(context, intent)
-        } catch (e: Exception) {
-            Log.e("Auth", "Failed to sign in", e)
+
+    fun signInWithGoogle() {
+        viewModelScope.launch {
+            _authState.value = AuthUiState.Loading
+            try {
+                val user = signInUseCases()
+                _authState.value = if (user != null) {
+                    AuthUiState.Success(user)
+                } else {
+                    AuthUiState.Error("Something went wrong.")
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthUiState.Error(e.message ?: "Unknown error")
+            }
         }
     }
+
+    fun signOut() {
+        viewModelScope.launch {
+            try {
+                signOutUseCase()
+                _authState.value = AuthUiState.Idle
+            } catch (e: Exception) {
+                _authState.value = AuthUiState.Error(e.message ?: "Sign out failed")
+            }
+        }
+    }
+
+    fun setIntentSender(intentSender: IntentSender) {
+        _intentSender = intentSender
+    }
+
+    fun clearError() {
+        if (_authState.value is AuthUiState.Error) {
+            _authState.value = AuthUiState.Idle
+        }
+    }
+}
+
+sealed interface AuthUiState {
+    object Idle : AuthUiState
+    object Loading : AuthUiState
+    object NotSignedIn : AuthUiState
+    data class Success(val user: FirebaseUser) : AuthUiState
+    data class Error(val message: String) : AuthUiState
 }

@@ -1,50 +1,78 @@
 package com.hady.stonesforever.data.Repository
 
 import android.content.Context
-import android.content.Intent
-import android.content.IntentSender
-import com.google.android.gms.auth.api.identity.BeginSignInRequest
-import com.google.android.gms.auth.api.identity.Identity
+import android.util.Log
+import androidx.credentials.*
+import androidx.credentials.exceptions.ClearCredentialException
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.FirebaseUser
 import com.hady.stonesforever.domain.Repository.GoogleAuthRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class GoogleAuthRepositoryImpl(
     private val context: Context,
     private val webClientId: String
 ) : GoogleAuthRepository {
 
-    private val firebaseAuth = FirebaseAuth.getInstance()
+    private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val credentialManager = CredentialManager.create(context)
 
-    override suspend fun beginSignIn(context: Context): IntentSender {
-        val signInRequest = BeginSignInRequest.builder()
-            .setGoogleIdTokenRequestOptions(
-                BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
-                    .setSupported(true)
-                    .setServerClientId(webClientId)
-                    .setFilterByAuthorizedAccounts(false)
-                    .build()
-            )
-            .setAutoSelectEnabled(false)
-            .build()
+    override suspend fun signIn(): FirebaseUser? = withContext(Dispatchers.IO) {
+        try {
+            // 1. Build the Google sign-in option
+            val googleIdOption = GetGoogleIdOption.Builder()
+                .setServerClientId(webClientId)
+                .setFilterByAuthorizedAccounts(false) // set true if you want to show only previously used accounts
+                .build()
 
-        val oneTapClient = Identity.getSignInClient(context)
-        val result = oneTapClient.beginSignIn(signInRequest).await()
-        return result.pendingIntent.intentSender
+            // 2. Create Credential request
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+
+            // 3. Launch Credential Manager
+            val result = credentialManager.getCredential(context, request)
+
+            // 4. Get credential from result
+            val credential = result.credential
+
+            if (credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                val idToken = googleIdTokenCredential.idToken
+
+                val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
+                val authResult = firebaseAuth.signInWithCredential(firebaseCredential).await()
+                return@withContext authResult.user
+            } else {
+                Log.w(TAG, "Credential is not a Google ID Token type!")
+                return@withContext null
+            }
+        } catch (e: GetCredentialException) {
+            Log.e(TAG, "Credential error: ${e.localizedMessage}", e)
+            return@withContext null
+        }
     }
 
-    override suspend fun getGoogleIdTokenFromIntent(context: Context, intent: Intent): String {
-        val oneTapClient = Identity.getSignInClient(context)
-        val credential = oneTapClient.getSignInCredentialFromIntent(intent)
-        return credential.googleIdToken
-            ?: throw Exception("Google ID token was null")
+    override suspend fun signOut(): Unit = withContext(Dispatchers.IO) {
+        firebaseAuth.signOut()
+
+        try {
+            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+        } catch (e: ClearCredentialException) {
+            Log.e(TAG, "Failed to clear credential state: ${e.localizedMessage}")
+        }
     }
 
-    override suspend fun firebaseSignInWithGoogleIdToken(idToken: String): FirebaseUser? {
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
-        val authResult = firebaseAuth.signInWithCredential(credential).await()
-        return authResult.user
+    override fun getCurrentUser(): FirebaseUser? = firebaseAuth.currentUser
+
+    companion object {
+        private const val TAG = "GoogleAuthRepository"
     }
 }

@@ -12,7 +12,20 @@
           "package_name": "com.hady.stonesforever"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "167639734033-j9ehmidp9a4f7rnntnquf4bq3a4hghrh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hady.stonesforever",
+            "certificate_hash": "0c93728f962bf00dfcab8992d4bfeeb8c46a3855"
+          }
+        },
+        {
+          "client_id": "167639734033-s24rie3nmu5jc87539j729gioi8pl79k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC5-XchXod3e8PNDozZ9yg2CRVSvOrcgw8"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "167639734033-s24rie3nmu5jc87539j729gioi8pl79k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
