@@ -8,6 +8,7 @@ import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+import com.google.android.play.integrity.internal.a
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.FirebaseUser
@@ -24,7 +25,7 @@ class GoogleAuthRepositoryImpl(
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
     private val credentialManager = CredentialManager.create(context)
 
-    override suspend fun signIn(): FirebaseUser? = withContext(Dispatchers.IO) {
+    override suspend fun signIn(activityContext: Context): FirebaseUser? = withContext(Dispatchers.IO) {
         try {
             // 1. Build the Google sign-in option
             val googleIdOption = GetGoogleIdOption.Builder()
@@ -38,7 +39,7 @@ class GoogleAuthRepositoryImpl(
                 .build()
 
             // 3. Launch Credential Manager
-            val result = credentialManager.getCredential(context, request)
+            val result = credentialManager.getCredential(activityContext, request)
 
             // 4. Get credential from result
             val credential = result.credential

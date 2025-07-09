@@ -10,8 +10,8 @@ import javax.inject.Inject
 class SignInWithGoogleUseCase @Inject constructor(
     private val repository: GoogleAuthRepository
 ) {
-    suspend operator fun invoke(): FirebaseUser? {
-        return repository.signIn()
+    suspend operator fun invoke(activityContext: Context): FirebaseUser? {
+        return repository.signIn(activityContext = activityContext)
     }
 }
 

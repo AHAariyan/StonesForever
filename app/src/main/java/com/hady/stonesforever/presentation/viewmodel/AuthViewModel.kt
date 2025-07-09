@@ -6,6 +6,7 @@ import android.content.IntentSender
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.play.integrity.internal.ac
 import com.google.firebase.auth.FirebaseUser
 import com.hady.stonesforever.data.model.UserData
 import com.hady.stonesforever.domain.use_cases.GetCurrentUserUseCase
@@ -47,11 +48,11 @@ class AuthViewModel @Inject constructor(
     }
 
 
-    fun signInWithGoogle() {
+    fun signInWithGoogle(activityContext: Context) {
         viewModelScope.launch {
             _authState.value = AuthUiState.Loading
             try {
-                val user = signInUseCases()
+                val user = signInUseCases(activityContext = activityContext)
                 _authState.value = if (user != null) {
                     AuthUiState.Success(user)
                 } else {

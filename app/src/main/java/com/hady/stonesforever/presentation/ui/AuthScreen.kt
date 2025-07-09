@@ -1,5 +1,6 @@
 package com.hady.stonesforever.presentation.ui
 
+import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,23 +23,40 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode.Companion.Color
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.android.play.integrity.internal.ac
 import com.google.firebase.auth.FirebaseUser
 import com.hady.stonesforever.presentation.viewmodel.AuthUiState
 import com.hady.stonesforever.presentation.viewmodel.AuthViewModel
 
 @Composable
-fun AuthScreen(
+internal fun AuthScreenRoute(
     viewModel: AuthViewModel = hiltViewModel(),
     onSignedIn: (FirebaseUser) -> Unit
 ) {
+    AuthScreen(viewModel = viewModel, onSignedIn = onSignedIn)
+}
+
+@Composable
+fun AuthScreen(
+    viewModel: AuthViewModel,
+    onSignedIn: (FirebaseUser) -> Unit
+) {
     val authState by viewModel.authState.collectAsState()
+    val context = LocalContext.current
+    val activity = context as? Activity
 
     when (authState) {
         is AuthUiState.Idle -> {
             SignInButton(
-                onClick = { viewModel.signInWithGoogle() }
+                onClick = {
+                    activity?.let {
+                        viewModel.signInWithGoogle(activityContext = it)
+                    }
+                }
+
             )
         }
 
@@ -57,7 +75,11 @@ fun AuthScreen(
 
         is AuthUiState.NotSignedIn -> {
             SignInButton(
-                onClick = { viewModel.signInWithGoogle() }
+                onClick = {
+                    activity?.let {
+                        viewModel.signInWithGoogle(activityContext = it)
+                    }
+                }
             )
         }
 
@@ -65,7 +87,11 @@ fun AuthScreen(
             val message = (authState as AuthUiState.Error).message
             ErrorMessage(
                 message = message,
-                onRetry = { viewModel.signInWithGoogle() }
+                onRetry = {
+                    activity?.let {
+                        viewModel.signInWithGoogle(activityContext = it)
+                    }
+                }
             )
         }
     }
@@ -92,7 +118,7 @@ fun ErrorMessage(message: String, onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = message,)
+        Text(text = message)
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onRetry) {
             Text("Retry")

@@ -6,7 +6,7 @@ import android.content.IntentSender
 import com.google.firebase.auth.FirebaseUser
 
 interface GoogleAuthRepository {
-    suspend fun signIn(): FirebaseUser?
+    suspend fun signIn(activityContext: Context): FirebaseUser?
     suspend fun signOut(): Unit
     fun getCurrentUser(): FirebaseUser?
 }
