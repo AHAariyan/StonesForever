@@ -15,7 +15,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.hady.stonesforever.presentation.ui.AuthScreen
 import com.hady.stonesforever.presentation.viewmodel.AuthViewModel
 import com.hady.stonesforever.ui.theme.StonesForeverTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -91,9 +91,9 @@ hilt-dependencies = [
 ]
 google-drive-api = [
     "google-services-auth",
-    "google-api-client",
-    "google-api-client-android",
-    "google-api-client-gson",
+    #"google-api-client",
+    #"google-api-client-android",
+    #"google-api-client-gson",
    # "google-api-services-drive"
 ]
 compose-core = [
