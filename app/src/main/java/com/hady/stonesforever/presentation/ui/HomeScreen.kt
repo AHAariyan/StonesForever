@@ -1,5 +1,7 @@
 package com.hady.stonesforever.presentation.ui
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,22 +20,69 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.hady.stonesforever.presentation.component.EditableTextFieldWithIcon
 import com.hady.stonesforever.presentation.component.FloatingTableRow
 import com.hady.stonesforever.presentation.component.ReadOnlyTextFieldWithCornerRadius
 import com.hady.stonesforever.presentation.component.ReadOnlyTextFieldWithCornerRadiusFullWidth
+import com.hady.stonesforever.presentation.viewmodel.DriveViewModel
 import com.hady.stonesforever.ui.theme.StonesForeverTheme
 
 @Composable
 fun HomeScreenRoute() {
+
+    val context = LocalContext.current
+    val viewModel: DriveViewModel = hiltViewModel()
+    val files by viewModel.filesState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.initializeDriveAccess()
+        viewModel.listFiles()
+    }
+
+    files.forEach {
+        Text(text = it.name ?: "Unnamed File")
+    }
+
+
+    LaunchedEffect(Unit) {
+        viewModel.initializeDriveAccess()
+
+        val folderId = "1-6fW7qApJ-z-PhGxJgB_CNGARVh2ZQf3"
+        val fileName = "Batch Movement  .xls" // 🔁 Replace with the actual file name
+
+        viewModel.getFileByNameFromFolder(
+            folderId = folderId,
+            fileName = fileName,
+            onSuccess = { file ->
+                Toast.makeText(context, "${file.name} Found", Toast.LENGTH_LONG).show()
+                Log.d("DriveHome", "✅ File found: ${file.name}, ID: ${file.id}")
+                viewModel.parseExcelFile(fileId = file.id)
+            },
+            onError = { error ->
+                Log.e("DriveHome", "❌ Failed to fetch file: ${error.message}", error)
+            }
+        )
+    }
+
+//    LaunchedEffect(Unit) {
+//        viewModel.initializeDriveAccess()
+//        viewModel.debugListAllFiles()
+//    }
+
+
     HomeScreen()
 }
 

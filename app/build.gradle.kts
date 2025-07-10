@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.Packaging
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -42,6 +44,18 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    packaging {
+        resources {
+            // For Kotlin DSL (build.gradle.kts):
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/DEPENDENCIES" // <-- Add this line!
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/AL2.0"
+            excludes += "META-INF/LGPL2.1"
+            excludes += "META-INF/*.kotlin_module"
+        }
     }
 }
 
@@ -96,5 +110,24 @@ dependencies {
     implementation(libs.googleid)
 
     implementation(libs.kotlinx.serialization.json)
+
+    // Core Credential Manager library
+    implementation("androidx.credentials:credentials:1.5.0")
+// Or the latest stable version
+// Google Identity integration for Credential Manager (this contains GetAuthorizationOption)
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+// Or the latest stable version
+// If you're also using the original Google Sign-In for other parts, keep this:
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+// Or the latest stable version
+// Google API Client for Android (for Drive service)
+    implementation("com.google.api-client:google-api-client-android:2.8.0")
+// Or the latest stable version
+    implementation("com.google.apis:google-api-services-drive:v3-rev20250701-2.0.0")
+// Or the latest stable version
+    implementation("com.google.oauth-client:google-oauth-client-jetty:1.39.0")
+
+
+    implementation("org.apache.poi:poi:5.4.1")
 
 }
