@@ -18,6 +18,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.apache.poi.hssf.usermodel.HSSFWorkbook
 import java.io.ByteArrayInputStream
@@ -33,7 +34,12 @@ class DriveViewModel @Inject constructor(
     private var getFileByNameFromFolderUseCase: GetFileByNameFromFolderUseCase? = null
 
     private val _batchMovements = MutableStateFlow<List<BatchMovement>>(emptyList())
-    val batchMovements: StateFlow<List<BatchMovement>> = _batchMovements
+    val batchMovements: StateFlow<List<BatchMovement>> = _batchMovements.asStateFlow()
+
+    private val _filteredByBatchCode = MutableStateFlow<BatchMovement?>(null)
+    val filteredByBatchCode: StateFlow<BatchMovement?> = _filteredByBatchCode.asStateFlow()
+
+
 
     private var driveService: Drive? = null
 
@@ -84,61 +90,58 @@ class DriveViewModel @Inject constructor(
     fun parseExcelFile(fileId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                Log.d("ExcelParser", "⬇️ Starting file download from Drive (fileId: $fileId)")
+                Log.d("ExcelParser", "⬇️ Downloading Excel file (ID: $fileId)...")
 
                 val outputStream = ByteArrayOutputStream()
-                driveService?.files()
-                    ?.get(fileId)
-                    ?.executeMediaAndDownloadTo(outputStream)
-
-                Log.d("ExcelParser", "✅ File downloaded successfully, converting to InputStream...")
-
+                driveService?.files()?.get(fileId)?.executeMediaAndDownloadTo(outputStream)
                 val inputStream = ByteArrayInputStream(outputStream.toByteArray())
                 val workbook = HSSFWorkbook(inputStream)
                 val sheet = workbook.getSheetAt(0)
 
-                Log.d("ExcelParser", "📄 Excel Sheet '${sheet.sheetName}' opened. Rows: ${sheet.lastRowNum + 1}")
+                Log.d("ExcelParser", "✅ Sheet '${sheet.sheetName}' loaded. Total rows: ${sheet.lastRowNum + 1}")
 
                 val result = mutableListOf<BatchMovement>()
                 var currentProductName = ""
 
-                for (i in 0..sheet.lastRowNum) {
+                for (i in 2..sheet.lastRowNum) { // Start from row index 2 (skip headers)
                     val row = sheet.getRow(i) ?: continue
-                    val firstCell = row.getCell(0)?.stringCellValue?.trim()
 
-                    if (firstCell?.startsWith("Product Name:") == true) {
-                        currentProductName = firstCell.removePrefix("Product Name:").trim()
-                        Log.d("ExcelParser", "➡️ Found new product section: $currentProductName")
+                    val col0 = row.getCell(0)?.toString()?.trim() ?: ""
+                    val col1 = row.getCell(1)?.toString()?.trim() ?: ""
+                    val col3 = row.getCell(3)?.toString()?.trim() ?: ""
+
+                    // 🟦 Product Name row
+                    if (col0.lowercase().startsWith("product name:")) {
+                        currentProductName = col0.removePrefix("Product Name:").trim()
+                        Log.d("ExcelParser", "➡️ Found product: $currentProductName (at row $i)")
                         continue
                     }
 
-                    if (firstCell == "Check#" || firstCell.isNullOrBlank()) continue
+                    // 🟥 Skip if not valid data row
+                    if (col1.lowercase() != "checked" || col3.isBlank()) {
+                        continue
+                    }
 
                     try {
-                        val inward = row.getCell(3)?.numericCellValue ?: 0.0
-                        val closing = row.getCell(5)?.numericCellValue ?: 0.0
-                        val pcs = row.getCell(7)?.numericCellValue?.toInt() ?: 0
-                        val height = row.getCell(9)?.numericCellValue?.toInt() ?: 0
-                        val width = row.getCell(10)?.numericCellValue?.toInt() ?: 0
-                        val barcode = row.getCell(2)?.stringCellValue?.trim() ?: ""
+                        if (row.lastCellNum < 14) {
+                            Log.w("ExcelParser", "⚠️ Row $i has only ${row.lastCellNum} columns. Skipping.")
+                            continue
+                        }
 
-                        result.add(
-                            BatchMovement(
-                                productName = currentProductName,
-                                meterSquare = closing,
-                                width = width,
-                                height = height,
-                                quantity = pcs,
-                                barcode = barcode
-                            )
+                        val movement = BatchMovement(
+                            productName = currentProductName,
+                            barcode = row.getCell(3)?.toString()?.trim() ?: "",
+                            meterSquare = row.getCell(6)?.numericCellValue ?: 0.0,
+                            quantity = row.getCell(9)?.numericCellValue?.toInt() ?: 0,
+                            width = row.getCell(12)?.numericCellValue?.toInt() ?: 0,
+                            height = row.getCell(11)?.numericCellValue?.toInt() ?: 0,
                         )
 
-                        Log.d(
-                            "ExcelParser",
-                            "✅ Parsed Row [$i]: product=$currentProductName, meter=$closing, width=$width, height=$height, qty=$pcs, barcode=$barcode"
-                        )
+                        result.add(movement)
+                        Log.d("ExcelParser", "✅ Row $i parsed: $movement")
+
                     } catch (e: Exception) {
-                        Log.e("ExcelParser", "⚠️ Error parsing row $i, skipping. Reason: ${e.message}")
+                        Log.e("ExcelParser", "⚠️ Error parsing row $i: ${e.message}")
                     }
                 }
 
@@ -152,6 +155,40 @@ class DriveViewModel @Inject constructor(
             }
         }
     }
+
+    fun searchByBatchCode(batchCode: String) {
+        val query = batchCode.trim().lowercase()
+
+        val result = _batchMovements.value.firstOrNull {
+            it.barcode.lowercase() == query
+        }
+
+        _filteredByBatchCode.value = result
+
+        if (result != null) {
+            addItem(singleItem = filteredByBatchCode.value!!)
+            Log.d("ExcelParser", "🔍 Found batch: ${result.barcode}, Product: ${result.productName}")
+        } else {
+            Log.w("ExcelParser", "❌ No match found for batch code: $query")
+        }
+    }
+
+    private val _selectedItem = MutableStateFlow<List<BatchMovement>>(emptyList())
+    val selectedItem: StateFlow<List<BatchMovement>> = _selectedItem.asStateFlow()
+
+
+    private fun addItem(singleItem: BatchMovement) {
+        _selectedItem.value += singleItem
+
+        Log.d("ITEM_SIZE", "addItem: ${selectedItem.value.size}")
+    }
+
+
+    fun clearFilteredItem(){
+        _filteredByBatchCode.value = null
+    }
+    
+
     fun debugListAllFiles() {
         viewModelScope.launch(Dispatchers.IO) {
             try {

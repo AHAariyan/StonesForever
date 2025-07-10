@@ -25,12 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.play.core.integrity.v
 import com.hady.stonesforever.common.InputScanOption
+import com.hady.stonesforever.data.model.BatchMovement
 import com.hady.stonesforever.presentation.component.FloatingTableRow
 import com.hady.stonesforever.presentation.component.InputOptionsScreen
 import com.hady.stonesforever.presentation.component.ReadOnlyTextFieldWithCornerRadius
@@ -38,18 +39,23 @@ import com.hady.stonesforever.presentation.component.ReadOnlyTextFieldWithCorner
 import com.hady.stonesforever.presentation.component.RoundedInputDialog
 import com.hady.stonesforever.presentation.viewmodel.DriveViewModel
 import com.hady.stonesforever.presentation.viewmodel.InputActionViewModel
-import com.hady.stonesforever.ui.theme.StonesForeverTheme
 
 @Composable
 fun HomeScreenRoute(
-    inputScanViewModel: InputActionViewModel = hiltViewModel()
+    inputScanViewModel: InputActionViewModel = hiltViewModel(),
+    viewModel: DriveViewModel = hiltViewModel()
 ) {
 
     val selectedScanOption by inputScanViewModel.selectedScanOption.collectAsStateWithLifecycle()
-    var shouldShowInputDialog = remember { mutableStateOf(false) }
+    val batchMovement by viewModel.batchMovements.collectAsStateWithLifecycle()
+    val filteredItem by viewModel.filteredByBatchCode.collectAsStateWithLifecycle()
+    val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
+
+
+    val shouldShowInputDialog = remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val viewModel: DriveViewModel = hiltViewModel()
+
     val files by viewModel.filesState.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -87,11 +93,19 @@ fun HomeScreenRoute(
 //        viewModel.debugListAllFiles()
 //    }
 
+    LaunchedEffect(batchMovement) {
+        Log.d("DriveHome", "📦 Parsed Batch Movement count: ${batchMovement.size}")
+        batchMovement.forEach {
+            Log.d("BATCH_MOVEMENT", "🧾 ${it.productName} - ${it.barcode}")
+        }
+    }
 
     HomeScreen(
         selectedScanOption = selectedScanOption,
         shouldShowInputDialog = shouldShowInputDialog,
-        inputScanViewModel = inputScanViewModel
+        inputScanViewModel = inputScanViewModel,
+        filteredItem = filteredItem,
+        viewModel = viewModel, selectedItem = selectedItem
     )
 }
 
@@ -99,58 +113,86 @@ fun HomeScreenRoute(
 internal fun HomeScreen(
     selectedScanOption: InputScanOption,
     shouldShowInputDialog: MutableState<Boolean>,
-    inputScanViewModel: InputActionViewModel
+    inputScanViewModel: InputActionViewModel,
+    filteredItem: BatchMovement?,
+    viewModel: DriveViewModel,
+    selectedItem: List<BatchMovement>
 ) {
 
     var enteredBarcode by remember { mutableStateOf<String>("") }
     var actualBarcode by remember { mutableStateOf("") }
 
-    when(selectedScanOption) {
+
+    when (selectedScanOption) {
         InputScanOption.DEFAULT -> {
             shouldShowInputDialog.value = true
         }
+
         InputScanOption.CAMERA -> {
             shouldShowInputDialog.value = false
         }
+
         InputScanOption.CUSTOM_INPUT -> {
             shouldShowInputDialog.value = true
         }
+
         InputScanOption.NONE -> {
             shouldShowInputDialog.value = false
         }
     }
 
+    Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+        ProductInfoSection(
+            inputScanViewModel = inputScanViewModel,
+            enteredBarcode = actualBarcode,
+            selectedScanOption = selectedScanOption,
+            filteredItem = filteredItem
+        )
+        ThemedDivider()
+        //Spacer(Modifier.height(8.dp))
+        SummaryHeader(totalPieces = 238, totalArea = 664.04)
+        //Spacer(Modifier.height(8.dp))
+        if (!selectedItem.isNullOrEmpty())
+            SlabListTable(
+                selectedItem = selectedItem,
+            )
+        else
+            Text("No Item selected yet")
+        Spacer(Modifier.weight(1f))
+        if (selectedItem.isNotEmpty())
+            BottomBar(
+                selectedItem = selectedItem
+            )
+    }
+
     if (shouldShowInputDialog.value) {
         RoundedInputDialog(
-            value = enteredBarcode, onValueChange = {newVal-> enteredBarcode = newVal}, onConfirm = {
+            value = enteredBarcode,
+            onValueChange = { newVal -> enteredBarcode = newVal },
+            onConfirm = {
                 shouldShowInputDialog.value = false
                 inputScanViewModel.updateScanOption(scanOption = InputScanOption.NONE)
                 actualBarcode = enteredBarcode
                 enteredBarcode = ""
-            }, onDismiss = {
+                viewModel.searchByBatchCode(batchCode = actualBarcode.trim().toString())
+                //inputScanViewModel.addItem(filteredItem!!)
+                //viewModel.clearFilteredItem()
+            },
+            onDismiss = {
                 shouldShowInputDialog.value = false
                 inputScanViewModel.updateScanOption(scanOption = InputScanOption.NONE)
             }
         )
     }
-
-    Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-        ProductInfoSection(inputScanViewModel = inputScanViewModel, enteredBarcode = actualBarcode, selectedScanOption = selectedScanOption)
-        ThemedDivider()
-        //Spacer(Modifier.height(8.dp))
-        SummaryHeader(totalPieces = 238, totalArea = 664.04)
-        //Spacer(Modifier.height(8.dp))
-        SlabListTable(sampleData)
-        Spacer(Modifier.weight(1f))
-        BottomBar(count = 7, totalArea = 18.98)
-    }
 }
+//SF04820
 
 @Composable
 fun ProductInfoSection(
     inputScanViewModel: InputActionViewModel,
     enteredBarcode: String,
-    selectedScanOption: InputScanOption
+    selectedScanOption: InputScanOption,
+    filteredItem: BatchMovement?
 ) {
     Column(
         modifier = Modifier
@@ -159,10 +201,11 @@ fun ProductInfoSection(
 
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            ReadOnlyTextFieldWithCornerRadiusFullWidth(
-                text = "Product Name",
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (filteredItem != null)
+                ReadOnlyTextFieldWithCornerRadiusFullWidth(
+                    text = filteredItem.productName,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
             InputOptionsScreen(
                 enteredBarcode = enteredBarcode,
@@ -179,17 +222,30 @@ fun ProductInfoSection(
                 }
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp) // clean spacing between items
-            ) {
-                ReadOnlyTextFieldWithCornerRadius(text = "85", modifier = Modifier.weight(1f))
-                ReadOnlyTextFieldWithCornerRadius(text = "319", modifier = Modifier.weight(1f))
-                ReadOnlyTextFieldWithCornerRadius(text = "1", modifier = Modifier.weight(1f))
-                ReadOnlyTextFieldWithCornerRadius(text = "2.71", modifier = Modifier.weight(1f))
-            }
+            if (filteredItem != null)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp) // clean spacing between items
+                ) {
+                    ReadOnlyTextFieldWithCornerRadius(
+                        text = filteredItem.height.toString(),
+                        modifier = Modifier.weight(1f)
+                    )
+                    ReadOnlyTextFieldWithCornerRadius(
+                        text = filteredItem.width.toString(),
+                        modifier = Modifier.weight(1f)
+                    )
+                    ReadOnlyTextFieldWithCornerRadius(
+                        text = filteredItem.quantity.toString(),
+                        modifier = Modifier.weight(1f)
+                    )
+                    ReadOnlyTextFieldWithCornerRadius(
+                        text = filteredItem.meterSquare.toString(),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
         }
 
@@ -212,7 +268,7 @@ fun SummaryHeader(totalPieces: Int, totalArea: Double) {
 }
 
 @Composable
-fun SlabListTable(data: List<SlabItem>) {
+fun SlabListTable(selectedItem: List<BatchMovement>) {
     Column(Modifier.fillMaxWidth()) {
         // Table header
         Row(
@@ -232,7 +288,7 @@ fun SlabListTable(data: List<SlabItem>) {
         }
 
         // Table rows
-        data.forEachIndexed { index, item ->
+        selectedItem.forEachIndexed { index, item ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -241,11 +297,11 @@ fun SlabListTable(data: List<SlabItem>) {
             ) {
                 TableCell("X", 30.dp)
                 TableCell("${index + 1}", 50.dp)
-                TableCell(item.code, 80.dp)
+                TableCell(item.barcode, 80.dp)
                 TableCell("${item.height}", 40.dp)
-                TableCell("${item.length}", 40.dp)
-                TableCell("${item.qty}", 40.dp)
-                TableCell(String.format("%.2f", item.area), 50.dp)
+                TableCell("${item.width}", 40.dp)
+                TableCell("${item.quantity}", 40.dp)
+                TableCell(String.format("%.2f", item.meterSquare), 50.dp)
             }
         }
     }
@@ -275,11 +331,13 @@ fun TableCell(text: String, width: Dp) {
 }
 
 @Composable
-fun BottomBar(count: Int, totalArea: Double) {
+fun BottomBar(selectedItem: List<BatchMovement>) {
+    val totalQuantity = selectedItem.sumOf { it.quantity }
+    val totalMeterSquare = selectedItem.sumOf { it.meterSquare }
     FloatingTableRow(
-        textFieldOneValue = "A",
-        textFieldTwoValue = "B",
-        textFieldThreeValue = "C",
+        textFieldOneValue = selectedItem.size.toString(),
+        textFieldTwoValue = totalQuantity.toString(),
+        textFieldThreeValue = String.format("%.2f", totalMeterSquare),
         buttonText = "Save",
         onButtonClick = {}
     )
@@ -293,16 +351,6 @@ data class SlabItem(
     val area: Double
 )
 
-val sampleData = listOf(
-    SlabItem("SF47418", 89, 279, 1, 2.48),
-    SlabItem("SF47420", 89, 287, 1, 2.55),
-    SlabItem("SF47520", 99, 299, 1, 2.96),
-    SlabItem("SF47513", 99, 295, 1, 2.92),
-    SlabItem("SF47511", 99, 292, 1, 2.89),
-    SlabItem("SF47416", 89, 276, 1, 2.46),
-    SlabItem("SF47436", 85, 319, 1, 2.71)
-)
-
 @Composable
 fun ThemedDivider() {
     Divider(
@@ -310,12 +358,4 @@ fun ThemedDivider() {
         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
         thickness = 0.5.dp
     )
-}
-
-@Preview
-@Composable
-internal fun PreviewHomeScreen() {
-    StonesForeverTheme {
-        //HomeScreen()
-    }
 }
