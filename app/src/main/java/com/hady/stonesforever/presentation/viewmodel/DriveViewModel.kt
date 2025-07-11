@@ -33,8 +33,8 @@ class DriveViewModel @Inject constructor(
     private var listFilesUseCase: ListDriveFilesUseCase? = null
     private var getFileByNameFromFolderUseCase: GetFileByNameFromFolderUseCase? = null
 
-    private val _batchMovements = MutableStateFlow<List<BatchMovement>>(emptyList())
-    val batchMovements: StateFlow<List<BatchMovement>> = _batchMovements.asStateFlow()
+    private val _batchMovements = MutableStateFlow<DriveDataUiState>(DriveDataUiState.Idle)
+    val batchMovements: StateFlow<DriveDataUiState> = _batchMovements.asStateFlow()
 
     private val _filteredByBatchCode = MutableStateFlow<BatchMovement?>(null)
     val filteredByBatchCode: StateFlow<BatchMovement?> = _filteredByBatchCode.asStateFlow()
@@ -47,7 +47,28 @@ class DriveViewModel @Inject constructor(
     private val _filesState = MutableStateFlow<List<File>>(emptyList())
     val filesState: StateFlow<List<File>> = _filesState
 
-    fun initializeDriveAccess() {
+    init {
+        initializeDriveAccess()
+
+        val folderId = "1-6fW7qApJ-z-PhGxJgB_CNGARVh2ZQf3"
+        val fileName = "Batch Movement  .xls"
+
+        _batchMovements.value = DriveDataUiState.Loading
+        getFileByNameFromFolder(
+            folderId = folderId,
+            fileName = fileName,
+            onSuccess = { file ->
+                Log.d("DriveViewModel", "✅ File found on init: ${file.name}, ID: ${file.id}")
+                parseExcelFile(fileId = file.id)
+            },
+            onError = { error ->
+                _batchMovements.value = DriveDataUiState.Error(error = error.message.toString())
+                Log.e("DriveViewModel", "❌ Failed to fetch file: ${error.message}", error)
+            }
+        )
+    }
+
+    private fun initializeDriveAccess() {
         val account = GoogleSignIn.getLastSignedInAccount(context)
         if (account != null) {
             driveService = DriveServiceBuilder.buildService(context, account)
@@ -66,7 +87,7 @@ class DriveViewModel @Inject constructor(
         }
     }
 
-    fun getFileByNameFromFolder(
+    private fun getFileByNameFromFolder(
         folderId: String,
         fileName: String,
         onSuccess: (File) -> Unit,
@@ -146,11 +167,12 @@ class DriveViewModel @Inject constructor(
                 }
 
                 workbook.close()
-                _batchMovements.value = result
+                _batchMovements.value = DriveDataUiState.Success(model = result)
 
                 Log.d("ExcelParser", "✅ Parsing complete. Total parsed entries: ${result.size}")
 
             } catch (e: Exception) {
+                _batchMovements.value = DriveDataUiState.Error(error = e.message.toString())
                 Log.e("ExcelParser", "❌ Failed to parse Excel file: ${e.message}", e)
             }
         }
@@ -160,18 +182,22 @@ class DriveViewModel @Inject constructor(
         batchCode: String,
         selectedScanOption: InputScanOption,
         customBarcodeQuantity: String
-        ) {
+    ) {
         val query = batchCode.trim().lowercase()
 
-        val result = _batchMovements.value.firstOrNull {
+        val batchList = when (val state = _batchMovements.value) {
+            is DriveDataUiState.Success -> state.model
+            else -> emptyList()
+        }
+
+        val result = batchList.firstOrNull {
             it.barcode.lowercase() == query
         }
 
         _filteredByBatchCode.value = result
 
         if (result != null) {
-            addItem(singleItem = filteredByBatchCode.value!!)
-
+            addItem(result)
             Log.d("ExcelParser", "🔍 Found batch: ${result.barcode}, Product: ${result.productName}")
         } else {
             if (selectedScanOption == InputScanOption.CUSTOM_INPUT) {
@@ -180,6 +206,32 @@ class DriveViewModel @Inject constructor(
             Log.w("ExcelParser", "❌ No match found for batch code: $query")
         }
     }
+
+
+//    fun searchByBatchCode(
+//        batchCode: String,
+//        selectedScanOption: InputScanOption,
+//        customBarcodeQuantity: String
+//        ) {
+//        val query = batchCode.trim().lowercase()
+//
+//        val result = _batchMovements.value.firstOrNull {
+//            it.barcode.lowercase() == query
+//        }
+//
+//        _filteredByBatchCode.value = result
+//
+//        if (result != null) {
+//            addItem(singleItem = filteredByBatchCode.value!!)
+//
+//            Log.d("ExcelParser", "🔍 Found batch: ${result.barcode}, Product: ${result.productName}")
+//        } else {
+//            if (selectedScanOption == InputScanOption.CUSTOM_INPUT) {
+//                addCustomItem(batchCode = batchCode, customBarcodeQuantity = customBarcodeQuantity)
+//            }
+//            Log.w("ExcelParser", "❌ No match found for batch code: $query")
+//        }
+//    }
 
     private val _selectedItem = MutableStateFlow<List<BatchMovement>>(emptyList())
     val selectedItem: StateFlow<List<BatchMovement>> = _selectedItem.asStateFlow()
@@ -206,6 +258,17 @@ class DriveViewModel @Inject constructor(
         _selectedItem.value += populateResult
 
         Log.d("ITEM_SIZE", "addItem: ${selectedItem.value.size}")
+    }
+
+    fun removeItemAt(index: Int) {
+        val currentList = _selectedItem.value.toMutableList()
+        if (index in currentList.indices) {
+            currentList.removeAt(index)
+            _selectedItem.value = currentList
+            Log.d("ITEM_SIZE", "removeItemAt: ${_selectedItem.value.size}")
+        } else {
+            Log.w("ITEM_SIZE", "removeItemAt: Invalid index $index")
+        }
     }
 
 
@@ -243,4 +306,11 @@ class DriveViewModel @Inject constructor(
     }
 
 
+}
+
+sealed interface DriveDataUiState{
+    data class Success(val model : List<BatchMovement>): DriveDataUiState
+    data class Error(val error: String): DriveDataUiState
+    data object Loading: DriveDataUiState
+    data object Idle: DriveDataUiState
 }
