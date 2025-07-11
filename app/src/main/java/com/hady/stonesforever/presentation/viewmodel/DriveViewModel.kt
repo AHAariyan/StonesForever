@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.File
+import com.hady.stonesforever.common.ChipSelectorItems
 import com.hady.stonesforever.common.InputScanOption
 import com.hady.stonesforever.data.Repository.DriveRepositoryImpl
 import com.hady.stonesforever.data.drive.DriveServiceBuilder
@@ -38,7 +39,6 @@ class DriveViewModel @Inject constructor(
 
     private val _filteredByBatchCode = MutableStateFlow<BatchMovement?>(null)
     val filteredByBatchCode: StateFlow<BatchMovement?> = _filteredByBatchCode.asStateFlow()
-
 
 
     private var driveService: Drive? = null
@@ -119,7 +119,10 @@ class DriveViewModel @Inject constructor(
                 val workbook = HSSFWorkbook(inputStream)
                 val sheet = workbook.getSheetAt(0)
 
-                Log.d("ExcelParser", "✅ Sheet '${sheet.sheetName}' loaded. Total rows: ${sheet.lastRowNum + 1}")
+                Log.d(
+                    "ExcelParser",
+                    "✅ Sheet '${sheet.sheetName}' loaded. Total rows: ${sheet.lastRowNum + 1}"
+                )
 
                 val result = mutableListOf<BatchMovement>()
                 var currentProductName = ""
@@ -145,7 +148,10 @@ class DriveViewModel @Inject constructor(
 
                     try {
                         if (row.lastCellNum < 14) {
-                            Log.w("ExcelParser", "⚠️ Row $i has only ${row.lastCellNum} columns. Skipping.")
+                            Log.w(
+                                "ExcelParser",
+                                "⚠️ Row $i has only ${row.lastCellNum} columns. Skipping."
+                            )
                             continue
                         }
 
@@ -181,7 +187,8 @@ class DriveViewModel @Inject constructor(
     fun searchByBatchCode(
         batchCode: String,
         selectedScanOption: InputScanOption,
-        customBarcodeQuantity: String
+        customBarcodeQuantity: String,
+        itemTypes: ChipSelectorItems
     ) {
         val query = batchCode.trim().lowercase()
 
@@ -197,7 +204,15 @@ class DriveViewModel @Inject constructor(
         _filteredByBatchCode.value = result
 
         if (result != null) {
-            addItem(result)
+            if (itemTypes.name == ChipSelectorItems.TILES.name) {
+                addItemWithQuantity(
+                    singleItem = result,
+                    customBarcodeQuantity = customBarcodeQuantity
+                )
+            } else {
+                addItem(result)
+            }
+
             Log.d("ExcelParser", "🔍 Found batch: ${result.barcode}, Product: ${result.productName}")
         } else {
             if (selectedScanOption == InputScanOption.CUSTOM_INPUT) {
@@ -236,6 +251,17 @@ class DriveViewModel @Inject constructor(
     private val _selectedItem = MutableStateFlow<List<BatchMovement>>(emptyList())
     val selectedItem: StateFlow<List<BatchMovement>> = _selectedItem.asStateFlow()
 
+    private fun addItemWithQuantity(singleItem: BatchMovement, customBarcodeQuantity: String) {
+        val updatedItem = singleItem.copy(quantity = customBarcodeQuantity.toInt())
+
+        _selectedItem.value += updatedItem
+
+        Log.d(
+            "ITEM_SIZE",
+            "✅ Added item with quantity $customBarcodeQuantity. Total items: ${_selectedItem.value.size}"
+        )
+    }
+
 
     private fun addItem(singleItem: BatchMovement) {
         _selectedItem.value += singleItem
@@ -272,10 +298,10 @@ class DriveViewModel @Inject constructor(
     }
 
 
-    fun clearFilteredItem(){
+    fun clearFilteredItem() {
         _filteredByBatchCode.value = null
     }
-    
+
 
     fun debugListAllFiles() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -295,7 +321,10 @@ class DriveViewModel @Inject constructor(
                 Log.d("DriveQuickCheck", "📦 Total files fetched: ${result?.files?.size ?: 0}")
 
                 result?.files?.forEach {
-                    Log.d("DriveQuickCheck", "📄 File: '${it.name}' (id: ${it.id}), parents: ${it.parents}")
+                    Log.d(
+                        "DriveQuickCheck",
+                        "📄 File: '${it.name}' (id: ${it.id}), parents: ${it.parents}"
+                    )
                 }
 
             } catch (e: Exception) {
@@ -308,9 +337,9 @@ class DriveViewModel @Inject constructor(
 
 }
 
-sealed interface DriveDataUiState{
-    data class Success(val model : List<BatchMovement>): DriveDataUiState
-    data class Error(val error: String): DriveDataUiState
-    data object Loading: DriveDataUiState
-    data object Idle: DriveDataUiState
+sealed interface DriveDataUiState {
+    data class Success(val model: List<BatchMovement>) : DriveDataUiState
+    data class Error(val error: String) : DriveDataUiState
+    data object Loading : DriveDataUiState
+    data object Idle : DriveDataUiState
 }

@@ -40,8 +40,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hady.stonesforever.common.ChipSelectorItems
 import com.hady.stonesforever.common.InputScanOption
 import com.hady.stonesforever.data.model.BatchMovement
+import com.hady.stonesforever.presentation.component.ChipSelector
 import com.hady.stonesforever.presentation.component.ConfirmationDialog
 import com.hady.stonesforever.presentation.component.FloatingTableRow
 import com.hady.stonesforever.presentation.component.InputOptionsScreen
@@ -94,6 +96,8 @@ internal fun HomeScreen(
     var actualBarcode by rememberSaveable { mutableStateOf("") }
     var customBarcodeQuantity by rememberSaveable { mutableStateOf("") }
 
+    var selected by remember { mutableStateOf(ChipSelectorItems.SLABS) }
+
     val currentBatchState by rememberUpdatedState(batchMovement)
 
     // Effect handler (Snackbar / Toast)
@@ -121,6 +125,12 @@ internal fun HomeScreen(
     // UI
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+
+            Spacer(modifier = Modifier.padding(top = 8.dp))
+            ChipSelector(
+                selectedOption = selected,
+                onOptionSelected = { selected = it }
+            )
 
             ProductInfoSection(
                 inputScanViewModel = inputScanViewModel,
@@ -204,7 +214,8 @@ internal fun HomeScreen(
             },
             scanOption = selectedScanOption.name,
             quantityValue = customBarcodeQuantity,
-            onQuantityValueChange = { customBarcodeQuantity = it }
+            onQuantityValueChange = { customBarcodeQuantity = it },
+            itemType = selected.name
         )
     }
 }

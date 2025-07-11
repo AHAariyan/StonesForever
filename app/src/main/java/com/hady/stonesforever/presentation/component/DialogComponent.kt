@@ -2,6 +2,7 @@ package com.hady.stonesforever.presentation.component
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -9,8 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.DialogProperties
+import com.hady.stonesforever.common.ChipSelectorItems
 import com.hady.stonesforever.common.InputScanOption
 
 @Composable
@@ -23,7 +27,8 @@ fun RoundedInputDialog(
 
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    scanOption: String
+    scanOption: String,
+    itemType: String
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -59,9 +64,13 @@ fun RoundedInputDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
                 )
 
-                if (scanOption == InputScanOption.CUSTOM_INPUT.name) {
+                if (scanOption == InputScanOption.CUSTOM_INPUT.name || itemType == ChipSelectorItems.TILES.name) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Enter quantity",
@@ -77,6 +86,10 @@ fun RoundedInputDialog(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(8.dp),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
                     )
                 }
 
@@ -148,7 +161,6 @@ fun ConfirmationDialog(
         }
     }
 }
-
 
 
 @Preview
