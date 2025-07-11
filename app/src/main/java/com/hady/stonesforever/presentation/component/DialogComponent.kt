@@ -64,10 +64,10 @@ fun RoundedInputDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(8.dp),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                        imeAction = ImeAction.Done
-                    ),
+//                    keyboardOptions = KeyboardOptions(
+//                        keyboardType = KeyboardType.Number,
+//                        imeAction = ImeAction.Done
+//                    ),
                 )
 
                 if (scanOption == InputScanOption.CUSTOM_INPUT.name || itemType == ChipSelectorItems.TILES.name) {

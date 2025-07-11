@@ -1,7 +1,6 @@
 package com.hady.stonesforever.presentation.ui
 
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,6 +52,8 @@ import com.hady.stonesforever.presentation.component.RoundedInputDialog
 import com.hady.stonesforever.presentation.viewmodel.DriveDataUiState
 import com.hady.stonesforever.presentation.viewmodel.DriveViewModel
 import com.hady.stonesforever.presentation.viewmodel.InputActionViewModel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 
 @Composable
 fun HomeScreenRoute(
@@ -93,12 +94,25 @@ internal fun HomeScreen(
     val context = LocalContext.current
 
     var enteredBarcode by rememberSaveable { mutableStateOf("") }
-    var actualBarcode by rememberSaveable { mutableStateOf("") }
+    var actualBarcode = rememberSaveable { mutableStateOf("") }
     var customBarcodeQuantity by rememberSaveable { mutableStateOf("") }
 
     var selected by remember { mutableStateOf(ChipSelectorItems.SLABS) }
 
     val currentBatchState by rememberUpdatedState(batchMovement)
+
+    LaunchedEffect(actualBarcode.value) {
+        snapshotFlow {actualBarcode.value }
+            .debounce(300) // Optional: to avoid too frequent calls
+            .collectLatest { newQuery ->
+                viewModel.automaticSearchBatchCode(
+                    batchCode = actualBarcode.value,
+                    selectedScanOption = selectedScanOption,
+                    customBarcodeQuantity = customBarcodeQuantity,
+                    itemTypes = selected
+                )
+            }
+    }
 
     // Effect handler (Snackbar / Toast)
     LaunchedEffect(currentBatchState) {
@@ -166,7 +180,7 @@ internal fun HomeScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             if (selectedItem.isNotEmpty()) {
-                BottomBar(selectedItem = selectedItem)
+                BottomBar(selectedItem = selectedItem, viewModel = viewModel)
             }
         }
 
@@ -198,11 +212,12 @@ internal fun HomeScreen(
             onValueChange = { enteredBarcode = it },
             onConfirm = {
                 shouldShowInputDialog.value = false
-                actualBarcode = enteredBarcode
+                actualBarcode.value = enteredBarcode
                 viewModel.searchByBatchCode(
-                    batchCode = actualBarcode.trim(),
+                    batchCode = actualBarcode.value.trim(),
                     selectedScanOption = selectedScanOption,
-                    customBarcodeQuantity = customBarcodeQuantity
+                    customBarcodeQuantity = customBarcodeQuantity,
+                    itemTypes = selected
                 )
                 enteredBarcode = ""
                 customBarcodeQuantity = ""
@@ -342,7 +357,7 @@ internal fun HomeScreen(
 @Composable
 fun ProductInfoSection(
     inputScanViewModel: InputActionViewModel,
-    enteredBarcode: String,
+    enteredBarcode: MutableState<String>,
     selectedScanOption: InputScanOption,
     filteredItem: BatchMovement?
 ) {
@@ -360,7 +375,7 @@ fun ProductInfoSection(
                 )
 
             InputOptionsScreen(
-                enteredBarcode = enteredBarcode,
+                enteredBarcode = enteredBarcode.value,
                 selectedScanOption = selectedScanOption,
                 onDefaultClick = {
                     Log.d("DIALOG_EVENT", "HomeScreen: Called")
@@ -371,7 +386,10 @@ fun ProductInfoSection(
                 },
                 onCustomInputClick = {
                     inputScanViewModel.updateScanOption(scanOption = InputScanOption.CUSTOM_INPUT)
-                }
+                },
+                onInputChange = {newVal -> enteredBarcode.value = newVal
+
+                }, inputValue = enteredBarcode.value
             )
 
             if (filteredItem != null)
@@ -530,7 +548,8 @@ fun TableCell(
 }
 
 @Composable
-fun BottomBar(selectedItem: List<BatchMovement>) {
+fun BottomBar(selectedItem: List<BatchMovement>, viewModel: DriveViewModel) {
+    val context = LocalContext.current
     val totalQuantity = selectedItem.sumOf { it.quantity }
     val totalMeterSquare = selectedItem.sumOf { it.meterSquare }
     FloatingTableRow(
@@ -538,7 +557,9 @@ fun BottomBar(selectedItem: List<BatchMovement>) {
         textFieldTwoValue = totalQuantity.toString(),
         textFieldThreeValue = String.format("%.2f", totalMeterSquare),
         buttonText = "Save",
-        onButtonClick = {}
+        onButtonClick = {
+            viewModel.exportAndUpload(context = context, selectedItem)
+        }
     )
 }
 
