@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.play.core.integrity.v
 import com.hady.stonesforever.common.InputScanOption
 import com.hady.stonesforever.data.model.BatchMovement
 import com.hady.stonesforever.presentation.component.FloatingTableRow
@@ -122,6 +121,9 @@ internal fun HomeScreen(
     var enteredBarcode by remember { mutableStateOf<String>("") }
     var actualBarcode by remember { mutableStateOf("") }
 
+    var customBarcode by remember { mutableStateOf("") }
+    var customBarcodeQuantity by remember { mutableStateOf("") }
+
 
     when (selectedScanOption) {
         InputScanOption.DEFAULT -> {
@@ -152,9 +154,11 @@ internal fun HomeScreen(
         //Spacer(Modifier.height(8.dp))
         SummaryHeader(totalPieces = 238, totalArea = 664.04)
         //Spacer(Modifier.height(8.dp))
-        if (!selectedItem.isNullOrEmpty())
+        if (selectedItem.isNotEmpty())
             SlabListTable(
                 selectedItem = selectedItem,
+                scanOption = selectedScanOption,
+                customBarcodeQuantity = customBarcodeQuantity
             )
         else
             Text("No Item selected yet")
@@ -171,17 +175,26 @@ internal fun HomeScreen(
             onValueChange = { newVal -> enteredBarcode = newVal },
             onConfirm = {
                 shouldShowInputDialog.value = false
-                inputScanViewModel.updateScanOption(scanOption = InputScanOption.NONE)
                 actualBarcode = enteredBarcode
                 enteredBarcode = ""
-                viewModel.searchByBatchCode(batchCode = actualBarcode.trim().toString())
+                viewModel.searchByBatchCode(
+                    batchCode = actualBarcode.trim(),
+                    selectedScanOption = selectedScanOption,
+                    customBarcodeQuantity = customBarcodeQuantity
+                )
+
+                customBarcodeQuantity = ""
+                inputScanViewModel.updateScanOption(scanOption = InputScanOption.NONE)
                 //inputScanViewModel.addItem(filteredItem!!)
                 //viewModel.clearFilteredItem()
             },
             onDismiss = {
                 shouldShowInputDialog.value = false
                 inputScanViewModel.updateScanOption(scanOption = InputScanOption.NONE)
-            }
+            },
+            scanOption = selectedScanOption.name,
+            quantityValue = customBarcodeQuantity,
+            onQuantityValueChange = {newVal -> customBarcodeQuantity = newVal}
         )
     }
 }
@@ -268,7 +281,11 @@ fun SummaryHeader(totalPieces: Int, totalArea: Double) {
 }
 
 @Composable
-fun SlabListTable(selectedItem: List<BatchMovement>) {
+fun SlabListTable(
+    selectedItem: List<BatchMovement>,
+    scanOption: InputScanOption,
+    customBarcodeQuantity: String
+) {
     Column(Modifier.fillMaxWidth()) {
         // Table header
         Row(
@@ -300,7 +317,12 @@ fun SlabListTable(selectedItem: List<BatchMovement>) {
                 TableCell(item.barcode, 80.dp)
                 TableCell("${item.height}", 40.dp)
                 TableCell("${item.width}", 40.dp)
-                TableCell("${item.quantity}", 40.dp)
+                if (scanOption == InputScanOption.CUSTOM_INPUT) {
+                    TableCell(customBarcodeQuantity, 40.dp)
+                } else {
+                    TableCell("${item.quantity}", 40.dp)
+                }
+
                 TableCell(String.format("%.2f", item.meterSquare), 50.dp)
             }
         }

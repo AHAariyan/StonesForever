@@ -10,16 +10,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.DialogProperties
+import com.hady.stonesforever.common.InputScanOption
 
 @Composable
 fun RoundedInputDialog(
     value: String,
     onValueChange: (String) -> Unit,
+
+    quantityValue: String = "0",
+    onQuantityValueChange: (String) -> Unit,
+
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    title: String = "Enter Barcode"
+    scanOption: String
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
+    ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -34,7 +46,7 @@ fun RoundedInputDialog(
                     .fillMaxWidth()
             ) {
                 Text(
-                    text = title,
+                    text = "Enter barcode",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -48,6 +60,25 @@ fun RoundedInputDialog(
                     singleLine = true,
                     shape = RoundedCornerShape(8.dp),
                 )
+
+                if (scanOption == InputScanOption.CUSTOM_INPUT.name) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Enter quantity",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    OutlinedTextField(
+                        value = quantityValue,
+                        onValueChange = onQuantityValueChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -67,36 +98,37 @@ fun RoundedInputDialog(
         }
     }
 }
+
 @Preview
 @Composable
 fun DialogDemo() {
-    var showDialog by remember { mutableStateOf(false) }
-    var textValue by remember { mutableStateOf("") }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Button(onClick = { showDialog = true }) {
-            Text("Open Dialog")
-        }
-
-        if (showDialog) {
-            RoundedInputDialog(
-                value = textValue,
-                onValueChange = { textValue = it },
-                onConfirm = {
-                    showDialog = false
-                    // Handle confirmation logic here
-                },
-                onDismiss = {
-                    showDialog = false
-                }
-            )
-        }
-    }
+//    var showDialog by remember { mutableStateOf(false) }
+//    var textValue by remember { mutableStateOf("") }
+//
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp),
+//        verticalArrangement = Arrangement.Center,
+//        horizontalAlignment = Alignment.CenterHorizontally
+//    ) {
+//        Button(onClick = { showDialog = true }) {
+//            Text("Open Dialog")
+//        }
+//
+//        if (showDialog) {
+//            RoundedInputDialog(
+//                value = textValue,
+//                onValueChange = { textValue = it },
+//                onConfirm = {
+//                    showDialog = false
+//                    // Handle confirmation logic here
+//                },
+//                onDismiss = {
+//                    showDialog = false
+//                }
+//            )
+//        }
+//    }
 }
 

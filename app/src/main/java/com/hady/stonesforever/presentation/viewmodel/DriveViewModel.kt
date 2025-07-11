@@ -2,12 +2,12 @@ package com.hady.stonesforever.presentation.viewmodel
 
 import android.content.Context
 import android.util.Log
-import android.view.ContextMenu
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.File
+import com.hady.stonesforever.common.InputScanOption
 import com.hady.stonesforever.data.Repository.DriveRepositoryImpl
 import com.hady.stonesforever.data.drive.DriveServiceBuilder
 import com.hady.stonesforever.data.model.BatchMovement
@@ -156,7 +156,11 @@ class DriveViewModel @Inject constructor(
         }
     }
 
-    fun searchByBatchCode(batchCode: String) {
+    fun searchByBatchCode(
+        batchCode: String,
+        selectedScanOption: InputScanOption,
+        customBarcodeQuantity: String
+        ) {
         val query = batchCode.trim().lowercase()
 
         val result = _batchMovements.value.firstOrNull {
@@ -167,8 +171,12 @@ class DriveViewModel @Inject constructor(
 
         if (result != null) {
             addItem(singleItem = filteredByBatchCode.value!!)
+
             Log.d("ExcelParser", "🔍 Found batch: ${result.barcode}, Product: ${result.productName}")
         } else {
+            if (selectedScanOption == InputScanOption.CUSTOM_INPUT) {
+                addCustomItem(batchCode = batchCode, customBarcodeQuantity = customBarcodeQuantity)
+            }
             Log.w("ExcelParser", "❌ No match found for batch code: $query")
         }
     }
@@ -179,6 +187,23 @@ class DriveViewModel @Inject constructor(
 
     private fun addItem(singleItem: BatchMovement) {
         _selectedItem.value += singleItem
+
+        Log.d("ITEM_SIZE", "addItem: ${selectedItem.value.size}")
+    }
+
+    private fun addCustomItem(
+        batchCode: String, customBarcodeQuantity: String
+    ) {
+        val populateResult = BatchMovement(
+            productName = "Custom Input",
+            meterSquare = 0.0,
+            width = 0,
+            height = 0,
+            quantity = customBarcodeQuantity.toInt(),
+            barcode = batchCode
+        )
+
+        _selectedItem.value += populateResult
 
         Log.d("ITEM_SIZE", "addItem: ${selectedItem.value.size}")
     }
